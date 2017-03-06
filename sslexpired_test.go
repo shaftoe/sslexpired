@@ -147,35 +147,29 @@ func TestHostInCert(t *testing.T) {
 	var cert *x509.Certificate
 	var validForDays = 30
 
+	f := func(h string, c *x509.Certificate) {
+		if !hostInCert(h, c) {
+			t.Errorf("%s should be a valid host string", h)
+		}
+	}
+
 	domain = "somethingstrange.com"
 	host = "www." + domain
 	wild = "*." + domain
 	cert, _ = mockCert(host, []string{wild, domain}, validForDays)
 	if hostInCert("bogus.com", cert) {
-		t.Error("something off, bogus domain should not be a valid host")
+		t.Error("bogus domain should not be a valid host string")
 	}
-	if !hostInCert(domain, cert) {
-		t.Errorf("%s should be a valid host for the SSL certificate", domain)
-	}
-	if !hostInCert(host, cert) {
-		t.Errorf("%s should be a valid host for the SSL certificate", host)
-	}
-	if !hostInCert(wild, cert) {
-		t.Errorf("%s wildcard domain should be valid for the SSL cert", wild)
+	for _, h := range []string{domain, host, wild} {
+		f(h, cert)
 	}
 
 	domain = "why.not.some.more.levels.com."
 	host = "www." + domain
 	wild = "*." + domain
 	cert, _ = mockCert(host, []string{wild, domain}, validForDays)
-	if !hostInCert(domain, cert) {
-		t.Errorf("%s should be a valid host for the SSL certificate", domain)
-	}
-	if !hostInCert(host, cert) {
-		t.Errorf("%s should be a valid host for the SSL certificate", host)
-	}
-	if !hostInCert(wild, cert) {
-		t.Errorf("%s wildcard domain should be valid for the SSL cert", wild)
+	for _, h := range []string{domain, host, wild} {
+		f(h, cert)
 	}
 }
 
@@ -225,6 +219,9 @@ func TestValidateSSL(t *testing.T) {
 	if !reflect.DeepEqual(out["validHosts"], validHosts) {
 		t.Errorf("#validHosts: want %s got %s", validHosts, out["validHosts"])
 	}
+	if out["issuedBy"] == nil || out["issuedBy"] != "" {
+		t.Error("issuedBy not found in keys")
+	}
 
 	// this time we check the DNSAlt section, and we use a smaller delta, so
 	// it should not alert
@@ -256,7 +253,6 @@ func TestValidateSSL(t *testing.T) {
 	}
 
 	host = "a.bogus.domain"
-	delta = 30
 	msg, _ = validateInput([]string{"command", fmt.Sprintf(`{"host":"%s"}`, host)}, 0)
 	out = validateSSL(msg, cert)
 	expected = fmt.Sprintf("host %s not valid for the SSL certificate", host)

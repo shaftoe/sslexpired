@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const version = "0.1.0"
+const version = "0.1.1"
 
 // SSLCerts returns a slice of x509 Certificates available at the
 // target hostname
@@ -84,6 +84,13 @@ func daysLeft(cert *x509.Certificate) float64 {
 	return cert.NotAfter.Sub(time.Now()).Hours() / 24
 }
 
+func issuedBy(cert *x509.Certificate) string {
+	if len(cert.Issuer.Organization) > 0 {
+		return cert.Issuer.Organization[0]
+	}
+	return ""
+}
+
 func matchFound(host string, cert *x509.Certificate) bool {
 	if cert.Subject.CommonName == host {
 		return true
@@ -143,6 +150,7 @@ func validateSSL(msg map[string]interface{}, cert *x509.Certificate) map[string]
 		msg["host"], msg["daysLeft"])
 	msg["notAfter"] = cert.NotAfter.String()
 	msg["validHosts"] = allCertHosts(cert)
+	msg["issuedBy"] = issuedBy(cert)
 
 	if dLeft < float64(msg["daysTolerance"].(int)) {
 		msg["alert"] = true
